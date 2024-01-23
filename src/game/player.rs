@@ -1,24 +1,20 @@
 use bevy::prelude::*;
-use std::time::Instant;
 use crate::{art, generic, game, AppState};
 use generic::Direction;
+use std::f32::consts::PI;
 
 const START_DIRECTION: Direction = Direction::Right; // Direction player starts facing
-const AUTO_MOVE_MS: u8 = 50; // Millesconds which a button must be held down for inorder for the player to start cycling through the sprite sheet
 const DEATH_ANIMATION_FPS: f32 = 8.0;
-//const PLAYER_SPAWN_X: f32 = 
+
+const AUTO_MOVE_AV: f32 = 6.0; // Radians per second which the player turns when a steering button is held
+const ANGLE_RANGE_RAD: generic::Range<f32> = generic::Range {min: PI / -2.0, max: PI / 2.0}; // Miniumum and maximum angle for player
 
 #[derive(Component, Debug)]
 pub struct Player {
     pub speed: Vec2, // X and y speed
 
     facing: Direction, // Direction the player is currently facing
-    sprite_sheet_index: usize, // Current index for the player sprite sheet
-
-    // This is information is used to accelerate the rate at which the player turns while a movement button is being held
-    last_button_press: Option<Instant>, // Time when the last button (started) being pressed
-    last_frame_requested_direction: Option<Direction>, // This updates with what button the player is pressing every frame
-    force_update_direction: Option<Direction>, // Acts the same as a keypress, changing the players direction in the next frame
+    angle_rad: f32, 
 }
 
 #[derive(Component)]
@@ -35,10 +31,9 @@ impl Plugin for PlayerPlugin {
             .insert_resource(DeathAnimationTimer(Timer::from_seconds(1.0 / DEATH_ANIMATION_FPS, TimerMode::Repeating)))
             .add_systems(OnEnter(AppState::Game), spawn_player)
             .add_systems(Update, animate_death.run_if(in_state(AppState::GameOver)))
-            .add_systems(Update, (change_player_heading, move_player).run_if(in_state(AppState::Game)).run_if(in_state(game::GameState::Running)));
+            .add_systems(Update, (change_angle, set_player_heading, calculate_speed, move_player).run_if(in_state(AppState::Game)).run_if(in_state(game::GameState::Running)));
     }
 }
-
 
 // Spawns player and initializes death animation
 fn spawn_player(
@@ -67,7 +62,7 @@ fn spawn_player(
 
     // Spawn player with their back against the wall
     let player_spawn_x = match START_DIRECTION {
-        Direction::Left => screen_infromation.window_width - screen_infromation.x_deadspace - art::PLAYER_WORLD_SIZE.x / 2.0,
+        Direction::Left => screen_infromation.window_width - screen_infromation.x_deadspace - art::PLAYER_WORLD_SIZE.x / 2.0, 
         Direction::Right => screen_infromation.x_deadspace + art::PLAYER_WORLD_SIZE.x / 2.0,
     };
 
@@ -77,11 +72,12 @@ fn spawn_player(
             game::GameComponent,
             Player {
                 speed: Vec2::new(0.0, 0.0),
-                facing: START_DIRECTION,
-                sprite_sheet_index: art::PLAYER_SPRITE_SHEET_START_INDEX,
-                last_button_press: None,
-                last_frame_requested_direction: None,
-                force_update_direction: None,
+                facing: START_DIRECTION.reverse(),
+
+                angle_rad: match START_DIRECTION { // Radians from the center
+                    Direction::Left => ANGLE_RANGE_RAD.min,
+                    Direction::Right => ANGLE_RANGE_RAD.max,
+                },
             },
 
             SpriteSheetBundle {
@@ -118,110 +114,101 @@ fn spawn_player(
     );
 }
 
-// Changes player heading with arrow keys
-fn change_player_heading(
+// Changes the players angle with the steering keys
+fn change_angle(
     keyboard_input: Res<Input<KeyCode>>,
-    mut player_query: Query<(&mut Player, &mut TextureAtlasSprite)>,
-    game: Res<game::Game>,
+    mut player_query: Query<(&mut Player, &TextureAtlasSprite)>,
+    time: Res<Time>,
 ) {
     if let Ok((player, sprite)) = &mut player_query.get_single_mut() {
-        let mut requested_index: i32 = sprite.index as i32;
-        let dir_multiplier: i32;
 
-        // Flip sprite direction if the player is facing right
-        if player.facing == Direction::Right {
-            dir_multiplier = 1;
-            sprite.flip_x = false;
-        } else {
-            sprite.flip_x = true;
-            dir_multiplier = -1;
+        let rad_per_sprite = ANGLE_RANGE_RAD.max / art::PLAYER_SPRITESHEET_INDICES as f32;
+        let rad_from_sprite_index = generic::reverse_index(sprite.index, art::PLAYER_SPRITESHEET_INDICES) as f32 * rad_per_sprite * player.facing.to_x();
+
+        // Immediately jump to the next angle_rad which corresponds to a spritesheet index
+        // This is done to give immideate feedback to the player
+        if keyboard_input.just_pressed(KeyCode::D) || keyboard_input.just_pressed(KeyCode::Right) {
+            player.angle_rad = rad_from_sprite_index + rad_per_sprite;
         }
-
-        // Increment / deincrement sprite sheet index to rotate sprite when the player presses the direction keys
-        if keyboard_input.just_pressed(KeyCode::D) || keyboard_input.just_pressed(KeyCode::Right) || player.force_update_direction == Some(Direction::Right) {
-            requested_index -= 1 * dir_multiplier;
-            player.last_button_press = Some(Instant::now());
+        if keyboard_input.just_pressed(KeyCode::A) || keyboard_input.just_pressed(KeyCode::Left) {
+            player.angle_rad = rad_from_sprite_index - rad_per_sprite;
         }
-        if keyboard_input.just_pressed(KeyCode::A) || keyboard_input.just_pressed(KeyCode::Left) || player.force_update_direction == Some(Direction::Left) {
-            requested_index += 1 * dir_multiplier;
-            player.last_button_press = Some(Instant::now());
-        }
-        player.force_update_direction = None;
+        
 
-        // If the sprite index goes out of range the sprite should be flipped, so it can rotate back in the other direction
-        if requested_index >= art::PLAYER_SPRITESHEET_INDICES as i32 {
-            player.facing = player.facing.reverse();
-            sprite.flip_x ^= true;
-            sprite.index -= 1;
-        } else if requested_index >= 0 {
-            sprite.index = requested_index as usize;
-            player.sprite_sheet_index = requested_index as usize;
-        }
-
-        // Update player speed with (potentially) new index
-        let speed_steps = Vec2::new(game.difficulty.player_max_speed.x / (art::PLAYER_SPRITESHEET_INDICES - 1) as f32, game.difficulty.player_max_speed.y / art::PLAYER_SPRITESHEET_INDICES as f32);
-        player.speed = calculate_speed(sprite.index, speed_steps);
-
-        // Get current key press direction
-        let mut key_press_direction: Option<Direction> = None;
+        // Change player angle_rad in the direction of the steering keypress
         if keyboard_input.pressed(KeyCode::D) || keyboard_input.pressed(KeyCode::Right) {
-            key_press_direction = Some(Direction::Right);
+            player.angle_rad += AUTO_MOVE_AV / 1.0 * time.delta_seconds();
         }
         if keyboard_input.pressed(KeyCode::A) || keyboard_input.pressed(KeyCode::Left) {
-            key_press_direction = Some(Direction::Left);
+            player.angle_rad -= AUTO_MOVE_AV / 1.0 * time.delta_seconds();
         }
 
-        // Update / reset button information
-        if player.last_frame_requested_direction == None {
-            player.last_frame_requested_direction = key_press_direction;
-        } else {
-            if key_press_direction == None {
-                player.last_button_press = None;
-                player.last_frame_requested_direction = None;
-            }
-            if key_press_direction != player.last_frame_requested_direction {
-                player.last_frame_requested_direction = key_press_direction;
+        // Do not let the angle exceed limits provided by ANGLE_RANGE_RAD
+        if player.angle_rad < ANGLE_RANGE_RAD.min {
+            player.angle_rad = ANGLE_RANGE_RAD.min;
+        }
+        if player.angle_rad > ANGLE_RANGE_RAD.max {
+            player.angle_rad = ANGLE_RANGE_RAD.max; 
+        }
+    }
+}
+
+// Set players heading based on the players current rotation angle
+fn set_player_heading(
+    mut player_query: Query<(&mut Player, &mut TextureAtlasSprite), Changed<Player>>,
+) {
+    if let Ok((player, sprite)) = &mut player_query.get_single_mut() {
+        let angle = player.angle_rad.abs();
+        let sprite_sheet_index = generic::map(angle, ANGLE_RANGE_RAD.truncate(), generic::Range {min: 0.0, max: art::PLAYER_SPRITESHEET_INDICES as f32 - 1.0});
+        
+        // Reverse sprite sheet index because it decreases as angle increases
+        let reverse_index = (sprite_sheet_index as usize as i32 - (art::PLAYER_SPRITESHEET_INDICES - 1) as i32).abs() as usize;
+        sprite.index = reverse_index;
+
+        // Flip srite once it is left of the center line
+        // Don't flip sprite when it is in the center
+        // Additionally set the direction which the player is facing
+        //
+        // Because the center sprite is essentially shown twice it is on screen twice as long as the others
+        // This behaviour is expected and wanted
+        // It makes it easier for the player to stop in the center position
+        if sprite_sheet_index as usize != 0 {
+            if player.angle_rad < 0.0 {
+                sprite.flip_x = true;
+                player.facing = Direction::Left;
+            } else {
+                sprite.flip_x = false;
+                player.facing = Direction::Right;
             }
         }
+    }
+}
 
-        // Start automatically changing the player heading once a direction key has been held for a certain ammount of time
-        if let Some(press_time) = player.last_button_press {
+// Calculate speed based on player spritesheet index
+fn calculate_speed(mut player_query: Query<(&mut Player, &TextureAtlasSprite)>, game: Res<game::Game>) {
+    if let Ok((player, sprite)) = &mut player_query.get_single_mut() {
 
-            // AUTO_MOVE_MS * 2 when on the last sprite in the player spritesheet
-            // Done to make it easier to stop in this position
-            let mut auto_move_ms = AUTO_MOVE_MS;
-            if sprite.index == art::PLAYER_SPRITESHEET_INDICES - 1 {
-                auto_move_ms *= 2;
-            }
+        // Calculate how much the x and y speed changes each time the player spritesheet index is incremented / deincremented
+        let speed_steps = Vec2::new(
+            game.difficulty.player_max_speed.x / (art::PLAYER_SPRITESHEET_INDICES - 1) as f32,
+            game.difficulty.player_max_speed.y / art::PLAYER_SPRITESHEET_INDICES as f32
+        );
 
-            if press_time.elapsed().as_millis() > auto_move_ms as u128 {
-                player.force_update_direction = player.last_frame_requested_direction;
-            }
-        }
+        // Calculate speed
+        player.speed = Vec2::new(
+            speed_steps.x * generic::reverse_index(sprite.index, art::PLAYER_SPRITESHEET_INDICES) as f32, // As the sprite index increases the x speed should decrease (because at index 0 the plane is facing straight down)
+            speed_steps.y * (sprite.index + 1) as f32
+        )
     }
 }
 
 // Moves players x coordinate every frame according to player speed
 pub fn move_player(mut player_query: Query<(&mut Transform, &Player)>, time: Res<Time>) {
     if let Ok((mut transform, player)) = player_query.get_single_mut() {
-        let x_direction: f32;
-        if player.facing == Direction::Right {
-            x_direction = 1.0;
-        } else {
-            x_direction = -1.0;
-        }
     
-        transform.translation.x += player.speed.x * x_direction * time.delta_seconds();
+        transform.translation.x += player.speed.x * player.facing.to_x() * time.delta_seconds();
         transform.translation.y -= player.speed.y * time.delta_seconds();
     }
-}
-
-// Calculate speed based on player spritesheet index
-fn calculate_speed(index: usize, speed_steps: Vec2) -> Vec2 {
-    let reverse_index = (index as i32 - (art::PLAYER_SPRITESHEET_INDICES - 1) as i32).abs() as usize;
-    let indices = (reverse_index, index);
-
-    Vec2::new(speed_steps.x * (indices.0) as f32, speed_steps.y * (indices.1 + 1) as f32)
 }
 
 // Play the death animation when the player dies
@@ -255,5 +242,4 @@ fn animate_death(
             
         }
     }
-    
 }

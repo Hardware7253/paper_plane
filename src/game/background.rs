@@ -5,7 +5,7 @@ pub const LEVEL_TILE_WIDTH: usize = 4; // How many tiles wide to make the level
 
 #[derive(Resource)]
 pub struct BackgroundWallRows { // Contains the total number of background wall rows spawned
-    rows: u32,
+    pub rows: u32,
 }
 
 impl BackgroundWallRows {

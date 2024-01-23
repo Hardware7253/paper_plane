@@ -12,6 +12,7 @@ pub enum AppState {
    
     #[default]
     MainMenu,
+    ResetGame,
     Game,
     GameOver,
 }

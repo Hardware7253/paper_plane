@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-pub const SPRITE_SCALE: u32 = 4;
+pub const SPRITE_SCALE: u32 = 2;
 
 // Player sprite sheet information
 pub const PLAYER_SPRITE_SHEET_PATH: &'static str = "sprites/PaperPlanes.png";

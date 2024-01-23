@@ -19,7 +19,7 @@ pub fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
                     align_items: AlignItems::Center,
 
                     width: Val::Percent(100.0),
-                    height: Val::Percent(10.0),
+                    height: Val::Percent(12.0),
 
                     ..default()
                 },
