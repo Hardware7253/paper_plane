@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use crate::AppState;
-
 use crate::game;
 
 pub mod layout;
@@ -12,7 +11,7 @@ impl Plugin for HudPlugin {
         app
             .add_systems(OnEnter(AppState::Game), layout::spawn_hud)
 
-            .add_systems(OnExit(AppState::GameOver), layout::despawn_hud)
+            .add_systems(OnExit(game::GameState::GameOver), layout::despawn_hud)
             .add_systems(OnEnter(AppState::MainMenu), layout::despawn_hud)
 
             .add_systems(Update, update_hud_score.run_if(in_state(AppState::Game)));

@@ -21,6 +21,7 @@ pub enum GameState {
     #[default]
     Running,
     Paused,
+    GameOver,
 }
 
 #[derive(Resource)]
@@ -66,15 +67,12 @@ impl Plugin for GamePlugin {
             ))
 
             // Game resources have to be reset so the game can function properly if the user wants to play again
-            .add_systems(OnEnter(AppState::MainMenu), insert_game_resouorces)
-            .add_systems(OnEnter(AppState::GameOver), insert_game_resouorces)
+            .add_systems(OnEnter(AppState::GameSetup), insert_game_resouorces)
 
             .add_event::<ScoreIncrease>()
             .add_systems(Update, recalculate_difficulty.run_if(in_state(AppState::Game)).run_if(in_state(GameState::Running)))
 
-            // Despawn game components when the user goes back to the main menu, or when the game restarts
-            .add_systems(OnEnter(AppState::MainMenu), despawn_game_components)
-            .add_systems(OnExit(AppState::GameOver), despawn_game_components);
+            .add_systems(OnEnter(AppState::GameCleanup), despawn_game_components);
 
     }
 }

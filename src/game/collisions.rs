@@ -23,7 +23,7 @@ fn detect_collisions(
     platforms: Res<game::platforms::Platforms>,
     player_query: Query<&Transform, With<game::player::Player>>,
     screen_information: Res<generic::ScreenInformation>,
-    mut next_state: ResMut<NextState<AppState>>,
+    mut next_state: ResMut<NextState<game::GameState>>,
     scale_factor: Res<sprite_scaler::ScaleFactor>,
 ) {
     if let Ok(player_transform) = player_query.get_single() {
@@ -58,7 +58,7 @@ fn detect_collisions(
 
         // When there is a collision change app to game over state
         if collision {
-            next_state.set(AppState::GameOver);
+            next_state.set(game::GameState::GameOver);
         }
     }    
 }

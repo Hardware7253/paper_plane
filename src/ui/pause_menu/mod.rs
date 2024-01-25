@@ -29,6 +29,7 @@ fn change_pause_state(
         let state = match game_state.get() {
             GameState::Paused => GameState::Running,
             GameState::Running => GameState::Paused,
+            GameState::GameOver => GameState::GameOver,
         };
 
         next_state.set(state);

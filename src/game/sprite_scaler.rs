@@ -26,9 +26,6 @@ fn calcualte_sprite_scale(
     mut scale_factor: ResMut<ScaleFactor>,
 
     app_state: Res<State<AppState>>,
-    mut next_app_state: ResMut<NextState<AppState>>,
-
-    game_state: Res<State<GameState>>,
     mut next_game_state: ResMut<NextState<GameState>>,
 ) {
     for _ in resize_event.read() {
@@ -42,10 +39,7 @@ fn calcualte_sprite_scale(
         // When the window is resized end the game
         // Because it's a lot easier starting from scratch than repositioning and scaling every sprite to match the new window size
         if app_state.get() == &AppState::Game {
-            if game_state.get() == &GameState::Paused {
-                next_game_state.set(GameState::Running);
-            }
-            next_app_state.set(AppState::GameOver);
+            next_game_state.set(GameState::GameOver);
         }
     }
 }

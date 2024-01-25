@@ -9,7 +9,7 @@ pub fn play_button_interactions(
 ) {
     if let Ok(interaction) = button_query.get_single() {
         match interaction {
-            Interaction::Pressed => next_state.set(AppState::Game),
+            Interaction::Pressed => next_state.set(AppState::GameSetup),
             _ => (), 
         }
     }

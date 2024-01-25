@@ -48,7 +48,6 @@ pub fn spawn_background_walls(
     // Get y coordinate of the last wall row
     let mut last_y_coordinate: Option<f32> = None;
     for wall in bg_walls_query.iter() {
-        //println!("{}", wall.y_coordinate);
         if wall.row == bg_walls_rows.rows - 1 {
             last_y_coordinate = Some(wall.y_coordinate);
         }   

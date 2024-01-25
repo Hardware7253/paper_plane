@@ -31,7 +31,7 @@ impl Plugin for PlayerPlugin {
         app
             .insert_resource(DeathAnimationTimer(Timer::from_seconds(1.0 / DEATH_ANIMATION_FPS, TimerMode::Repeating)))
             .add_systems(OnEnter(AppState::Game), spawn_player)
-            .add_systems(Update, animate_death.run_if(in_state(AppState::GameOver)))
+            .add_systems(Update, animate_death.run_if(in_state(game::GameState::GameOver)))
             .add_systems(Update, (change_angle, set_player_heading, calculate_speed, move_player).run_if(in_state(AppState::Game)).run_if(in_state(game::GameState::Running)));
     }
 }

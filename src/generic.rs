@@ -105,11 +105,14 @@ impl Plugin for GenericPlugin {
     fn build(&self, app: &mut App) {
         app
             .insert_resource(ScreenInformation::new())
+
             .add_systems(PreStartup, update_screen_information)
             .add_systems(Update, update_screen_information);
     }
 }
 
+// Updates screen information
+// Used by game systems
 pub fn update_screen_information(
     mut screen_information: ResMut<ScreenInformation>,
     window_query: Query<&Window, With<PrimaryWindow>>,

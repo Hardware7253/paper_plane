@@ -10,15 +10,13 @@ impl Plugin for CameraPlugin {
             .add_systems(Startup, spawn_camera)
             .add_systems(Update, move_camera.after(game::player::move_player).run_if(in_state(AppState::Game)).run_if(in_state(game::GameState::Running)))
 
-            .add_systems(OnEnter(AppState::MainMenu), reset_camera_position)
-            .add_systems(OnExit(AppState::GameOver), reset_camera_position);
+            .add_systems(OnEnter(AppState::GameCleanup), reset_camera_position);
     }
 }
 
 // Spawn camera
-pub fn spawn_camera(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
+fn spawn_camera(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
     let window = window_query.get_single().unwrap();
-
     commands.spawn(
         Camera2dBundle {
             transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 0.0),
@@ -37,7 +35,7 @@ fn move_camera(mut camera_query: Query<&mut Transform, (With<Camera>, Without<ga
     }    
 }
 
-fn reset_camera_position(mut camera_query: Query<&mut Transform, With<Camera>>, window_query: Query<&Window, With<PrimaryWindow>>) {
+pub fn reset_camera_position(mut camera_query: Query<&mut Transform, With<Camera>>, window_query: Query<&Window, With<PrimaryWindow>>) {
     let window = window_query.get_single().unwrap();
     if let Ok(camera_transform) = &mut camera_query.get_single_mut() {
         camera_transform.translation.x = window.width() / 2.0;

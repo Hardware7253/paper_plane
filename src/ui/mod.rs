@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::game::GameState;
+use crate::{AppState, GameCleanupEvent};
 
 pub mod pause_menu;
 pub mod main_menu;
@@ -42,12 +41,16 @@ pub fn button_interactions(
 // Go back the main menu
 pub fn back_button_interactions(
     button_query: Query<&Interaction, (Changed<Interaction>, With<GenericBackButton>)>,
-    mut next_gamestate: ResMut<NextState<GameState>>,
-    mut next_appstate: ResMut<NextState<AppState>>,
+    mut next_app_state: ResMut<NextState<AppState>>,
+    mut cleanup_event: EventWriter<GameCleanupEvent>,
 ) {
     if let Ok(interaction) = button_query.get_single() {
         match interaction {
-            Interaction::Pressed => {next_appstate.set(AppState::MainMenu); next_gamestate.set(GameState::Running);},
+            Interaction::Pressed => {
+
+                cleanup_event.send(GameCleanupEvent{next_state: AppState::MainMenu}); // Cleanup the game and then transition to MainMenu
+                next_app_state.set(AppState::GameCleanup);
+            },
             _ => (), 
         }
     }
