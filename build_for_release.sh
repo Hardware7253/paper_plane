@@ -4,8 +4,6 @@ fnr() {
     sed -i "s/$old/$new/g" Cargo.toml
 }
 
-
-
 build() {
 
     # Disable dynamic linking for release builds
@@ -41,14 +39,3 @@ target="x86_64-unknown-linux-gnu"
 platform_name="linux"
 program_name="paper_plane"
 build
-
-
-
-
-
-
-
-
-
-#sed -i 's/^\(bevy = { version = "0.12.1", features = ["wayland"] } # Release\)$/#\1/' Cargo.toml #
-#sed -i 's/^#\(bevy = { version = "0.12.1", features = ["dynamic_linking", "wayland"] } # Debug\)$/\1/' Cargo.toml
