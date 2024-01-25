@@ -9,17 +9,19 @@ pub struct ScoreText;
 
 pub fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(
-        // Main menu background, and parent node
+        
         (
             Hud,
 
             NodeBundle {
                 style: Style {
-                    justify_content: JustifyContent::Center,
+                    flex_direction: FlexDirection::Column,
+                    justify_content: JustifyContent::FlexStart,
                     align_items: AlignItems::Center,
+                    
 
                     width: Val::Percent(100.0),
-                    height: Val::Percent(12.0),
+                    height: Val::Percent(100.0),
 
                     ..default()
                 },
@@ -27,8 +29,21 @@ pub fn spawn_hud(mut commands: Commands, asset_server: Res<AssetServer>) {
             }
         )
     )
-
+    
     .with_children(|parent| {
+        parent.spawn(
+            NodeBundle {
+                style: Style {
+                    margin: UiRect {
+                        bottom: Val::Percent(1.0), // Score text is spaced 1% from the top of the screen
+                        ..default()
+                    },
+                    ..default()
+                },
+                ..default()
+            }
+        );
+
         parent.spawn(
             (
                 ScoreText,

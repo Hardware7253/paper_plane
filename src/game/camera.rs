@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::window::{PrimaryWindow, WindowResized};
 use crate::{art, game, AppState};
 
 pub struct CameraPlugin;
@@ -10,7 +10,8 @@ impl Plugin for CameraPlugin {
             .add_systems(Startup, spawn_camera)
             .add_systems(Update, move_camera.after(game::player::move_player).run_if(in_state(AppState::Game)).run_if(in_state(game::GameState::Running)))
 
-            .add_systems(OnEnter(AppState::GameCleanup), reset_camera_position);
+            .add_systems(OnEnter(AppState::GameCleanup), reset_camera_position)
+            .add_systems(Update, reset_camera_position.run_if(in_state(AppState::MainMenu)));
     }
 }
 
@@ -35,10 +36,32 @@ fn move_camera(mut camera_query: Query<&mut Transform, (With<Camera>, Without<ga
     }    
 }
 
-pub fn reset_camera_position(mut camera_query: Query<&mut Transform, With<Camera>>, window_query: Query<&Window, With<PrimaryWindow>>) {
+// Reset camera position unconditionally when called when in AppState::GameCleanup
+// Else reset camera when a resize event occurs
+pub fn reset_camera_position(
+    mut camera_query: Query<&mut Transform, With<Camera>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    mut resize_event: EventReader<WindowResized>,
+    app_state: Res<State<AppState>>,
+    
+) {
     let window = window_query.get_single().unwrap();
     if let Ok(camera_transform) = &mut camera_query.get_single_mut() {
-        camera_transform.translation.x = window.width() / 2.0;
-        camera_transform.translation.y = window.height() / 2.0;
+
+        let mut resize = match app_state.get() {
+            AppState::GameCleanup => true,
+            _ => false,
+        };
+
+        for _ in resize_event.read() {
+            resize = true;
+        }
+        
+
+        if resize {
+            camera_transform.translation.x = window.width() / 2.0;
+            camera_transform.translation.y = window.height() / 2.0;
+        }
+        
     }
 }

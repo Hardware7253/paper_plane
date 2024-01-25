@@ -1,8 +1,10 @@
 use bevy::prelude::*;
+use bevy::window::WindowMode;
 
 pub mod game;
 pub mod art;
 pub mod generic;
+pub mod screen_mode;
 
 
 pub mod ui;
@@ -23,13 +25,23 @@ pub struct GameCleanupEvent {
     next_state: AppState,
 }
 
-
 fn main() {
     App::new()
         .add_event::<GameCleanupEvent>()
         .add_state::<AppState>()
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest())) // Change ImagePlugin to render sprites with nearest scaling
-        .add_plugins((game::GamePlugin, generic::GenericPlugin, ui::UiPlugin))
+
+        .add_plugins((
+            DefaultPlugins.set(WindowPlugin { // Change window plugin to default to bordless fullscreen
+                primary_window: Some(Window {
+                    mode: WindowMode::BorderlessFullscreen,
+                    ..default()
+                }),
+                ..default()
+            })
+            .set(ImagePlugin::default_nearest()), // Change ImagePlugin to render sprites with nearest scaling
+        ))
+
+        .add_plugins((game::GamePlugin, generic::GenericPlugin, ui::UiPlugin, screen_mode::ScreenModePlugin))
 
         .add_systems(OnEnter(AppState::GameCleanup), game_cleanup_transition)
         .add_systems(OnEnter(AppState::GameSetup), game_setup_transition)
