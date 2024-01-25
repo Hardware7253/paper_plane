@@ -1,18 +1,11 @@
 use bevy::prelude::*;
 use std::f32::consts::PI;
 use crate::{art, generic, AppState, game};
+use game::sprite_scaler;
 use rand::Rng;
 use generic::Direction;
-use art::{PLATFORM_CORNER_SPRITE_PATH, PLATFORM_STRAIGHT_SPRITE_PATH};
 
 const DOUBLE_SIDED_PLATFORM_CHANCE: usize = 10; // % Change for a double sided platform to spawn for every platform spawn
-
-// How many platform tiles length each platform can vary from the last
-pub const PLATFORM_SPRITES_PER_PLAYER_SPRITE: i32 = ((art::PLAYER_SPRITE_SIZE.x * art::SPRITE_SCALE as f32) / art::PLATFORM_WORLD_SIZE.x) as i32;
-const PLATFORM_LENGTH_VARIANCE: generic::Range<i32> = generic::Range {
-    min: PLATFORM_SPRITES_PER_PLAYER_SPRITE * -1,
-    max: PLATFORM_SPRITES_PER_PLAYER_SPRITE * 1,
-};
 
 // For spawning the first platform
 const FIRST_PLATFORM_SIDE: Direction = Direction::Left;
@@ -56,19 +49,21 @@ fn spawn_platforms(
     mut platforms: ResMut<Platforms>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    game: Res<game::Game>
+    game: Res<game::Game>,
+    scale_factor: Res<sprite_scaler::ScaleFactor>,
 ) {
     let difficulty = &game.difficulty;
     let mut rng = rand::thread_rng();
 
     // Calculate long a platform would need to be to cross the entire screen
-    let platforms_across_screen: i32 = ((screen_information.window_width - (screen_information.x_deadspace * 2.0)) / art::PLATFORM_WORLD_SIZE.x) as i32;
+    let platform_world_width = art::PLATFORM_SPRITE_SIZE.x * scale_factor.current;
+    let platforms_across_screen: i32 = ((screen_information.window_width - (screen_information.x_deadspace * 2.0)) / platform_world_width) as i32;
 
     // Continually add platforms untill they fill slightly beyond the visible area
     let mut sufficient_platforms = false;
     while !sufficient_platforms {
         let platform_gap = rng.gen_range(difficulty.platform_gap.min..difficulty.platform_gap.max); // Generate random platform gap
-
+        
         // Get last platform if it exists
         // Otherwise create an imaginary last platform, whose data will be used to spawn the first platform in the correct position
         let last_platform: Platform;
@@ -88,12 +83,19 @@ fn spawn_platforms(
 
         let last_platform_y_min = last_platform.hitbox[1].min;
 
+        // How many platform tiles length each platform can vary from the last
+        let platform_sprites_per_player_sprite: i32 = ((art::PLAYER_SPRITE_SIZE.x * scale_factor.current) / platform_world_width) as i32;
+        let platform_length_variance: generic::Range<i32> = generic::Range {
+            min: platform_sprites_per_player_sprite * -1,
+            max: platform_sprites_per_player_sprite * 1,
+        };
+
         // Only spawn a new platform when the last platform is close to the visible area
         if last_platform_y_min > screen_information.y_visible_area.min - (platform_gap * 4.0) {
 
             // Calculate new platform dimensions
             let platform_dimensions = [
-                platforms_across_screen / 2 + rng.gen_range(PLATFORM_LENGTH_VARIANCE.min..PLATFORM_LENGTH_VARIANCE.max),
+                platforms_across_screen / 2 + rng.gen_range(platform_length_variance.min..platform_length_variance.max),
                 difficulty.platform_height,
             ];
 
@@ -132,7 +134,7 @@ fn spawn_platforms(
                         index: platforms.total_platforms,
                         hitbox: platform_hitbox,
                         dimensions: [
-                            platforms_across_screen - platform_dimensions[0] - (PLATFORM_SPRITES_PER_PLAYER_SPRITE * 2),
+                            platforms_across_screen - platform_dimensions[0] - (platform_sprites_per_player_sprite * 2),
                             platform_dimensions[1],
                         ],
                         side: platform_side.reverse(),
@@ -141,7 +143,7 @@ fn spawn_platforms(
                     current_platform = platform;
                 }
 
-                draw_platform(current_platform, &mut commands, &asset_server, &mut platforms, &screen_information)
+                draw_platform(current_platform, &mut commands, &asset_server, &mut platforms, &screen_information, scale_factor.current)
             }
             
 
@@ -165,7 +167,13 @@ fn draw_platform(
     asset_server: &Res<AssetServer>,
     platforms: &mut ResMut<Platforms>,
     screen_information: &generic::ScreenInformation,
+    scale_factor: f32
 ) {
+    let platform_world_size = Vec2::new(
+        art::PLATFORM_SPRITE_SIZE.x * scale_factor,
+        art::PLATFORM_SPRITE_SIZE.y * scale_factor,
+    );
+
     // Determine location of the first sprite, and set tile rotations which change depending on which side of the screen the platform is spawned on
     let sprite_spawn_x: f32;
     let straight_tile_rotations: [f32; 3];
@@ -173,26 +181,26 @@ fn draw_platform(
     let x_direction: f32;
     
     if platform.side == Direction::Left {
-        sprite_spawn_x = screen_information.x_deadspace +  (art::PLATFORM_WORLD_SIZE.x / 2.0);
+        sprite_spawn_x = screen_information.x_deadspace +  (platform_world_size.x / 2.0);
         straight_tile_rotations = [0.0, 1.5, 1.0];
         corner_tile_rotations = [1.5, 1.0, 0.0];
         x_direction = 1.0; // Platform grows into positive x direction
     } else {
-        sprite_spawn_x = screen_information.window_width - screen_information.x_deadspace -  (art::PLATFORM_WORLD_SIZE.x / 2.0);
+        sprite_spawn_x = screen_information.window_width - screen_information.x_deadspace -  (platform_world_size.x / 2.0);
         straight_tile_rotations = [0.0, 0.5, 1.0];
         corner_tile_rotations = [0.0, 0.5, 0.0];
         x_direction = -1.0; // Platform grows into negative x direction
     }
 
     let tile_rotations = [straight_tile_rotations, corner_tile_rotations];
-    let first_sprite_location = Vec2::new(sprite_spawn_x, platform.hitbox[1].max - (art::PLATFORM_WORLD_SIZE.y / 2.0));
+    let first_sprite_location = Vec2::new(sprite_spawn_x, platform.hitbox[1].max - (platform_world_size.y / 2.0));
 
     // Calculate the rest of the platform hitbox (allready given y max from the parent function)
     platform.hitbox[0] = generic::Range { // X range
-        max: first_sprite_location.x + (platform.dimensions[0] as f32 * art::PLATFORM_WORLD_SIZE.x * x_direction),
+        max: first_sprite_location.x + (platform.dimensions[0] as f32 * platform_world_size.x * x_direction),
         min: first_sprite_location.x,
     };
-    platform.hitbox[1].min = platform.hitbox[1].max - (art::PLATFORM_WORLD_SIZE.y * platform.dimensions[1] as f32); // Y min
+    platform.hitbox[1].min = platform.hitbox[1].max - (platform_world_size.y * platform.dimensions[1] as f32); // Y min
 
     // Spawn all tile pieces of the platform
     for x in 0..platform.dimensions[0] {
@@ -205,16 +213,16 @@ fn draw_platform(
             }
 
             // Where the sprite should be spawned
-            let sprite_location = Vec2::new(first_sprite_location.x + (x_direction * art::PLATFORM_WORLD_SIZE.x * x as f32), first_sprite_location.y - (art::PLATFORM_WORLD_SIZE.y * y as f32));
+            let sprite_location = Vec2::new(first_sprite_location.x + (x_direction * platform_world_size.x * x as f32), first_sprite_location.y - (platform_world_size.y * y as f32));
             
             // Set the sprite to a corner or straight piece based on the x and y coordinate
             let sprite_path: &str;
             let tile_index: usize;
             if x == platform.dimensions[0] - 1 && (y == 0 || y == platform.dimensions[1] - 1) { // Detect corner piece
-                sprite_path = PLATFORM_CORNER_SPRITE_PATH;
+                sprite_path = art::PLATFORM_CORNER_SPRITE_PATH;
                 tile_index = 1;
             } else { // Detect straight piece
-                sprite_path = PLATFORM_STRAIGHT_SPRITE_PATH;
+                sprite_path = art::PLATFORM_STRAIGHT_SPRITE_PATH;
                 tile_index = 0;
             }
 
@@ -248,7 +256,7 @@ fn draw_platform(
                         transform: Transform {
                             translation: Vec3::new(sprite_location.x, sprite_location.y, 1.0),
                             rotation: Quat::from_rotation_z(PI * tile_rotations[tile_index][rotation_index]),
-                            scale: Vec3::splat(art::SPRITE_SCALE as f32),
+                            scale: Vec3::splat(scale_factor),
                         },
                         ..default()
                     },

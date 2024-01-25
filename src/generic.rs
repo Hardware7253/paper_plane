@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
 use crate::{art, game};
+use game::sprite_scaler;
 use rand::Rng;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
@@ -42,6 +43,9 @@ pub struct Range<T> {
 }
 
 impl Range<f32> {
+    pub fn new() -> Self {
+        Range {min: 0.0, max: 0.0}
+    }
 
     // Set min value to 0 when it's negative
     pub fn truncate(self) -> Self {
@@ -106,25 +110,26 @@ impl Plugin for GenericPlugin {
     }
 }
 
-fn update_screen_information(
+pub fn update_screen_information(
     mut screen_information: ResMut<ScreenInformation>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     camera_query: Query<&Transform, With<Camera>>,
+    scale_factor: Res<sprite_scaler::ScaleFactor>,
 ) {
-    let window = window_query.get_single().unwrap();
-    screen_information.window_width = window.width();
-    screen_information.window_height = window.height();
-    
+    if let Ok(window) = window_query.get_single() {
+        screen_information.window_width = window.width();
+        screen_information.window_height = window.height();
+        
+        let wall_world_width = art::WALL_SPRITE_SIZE.x * scale_factor.current;
+        screen_information.x_deadspace = calculate_screen_deadspace(window.width(), wall_world_width);
 
-    screen_information.x_deadspace = calculate_screen_deadspace(window.width());
-
-    // Calculate y visible area if the camera exists, otherwise use the window height
-    if let Ok(camera_transform) = camera_query.get_single() {
-        screen_information.y_visible_area = calculate_visible_y_area(window.height(), camera_transform.translation.y);   
-    } else {
-        screen_information.y_visible_area = Range {min: 0.0, max: window.height()}
-    }
-    
+        // Calculate y visible area if the camera exists, otherwise use the window height
+        if let Ok(camera_transform) = camera_query.get_single() {
+            screen_information.y_visible_area = calculate_visible_y_area(window.height(), camera_transform.translation.y);   
+        } else {
+            screen_information.y_visible_area = Range {min: 0.0, max: window.height()}
+        }
+    } 
 }
 
 // Calculates the maximum and minimum y coordinate on the screen
@@ -138,8 +143,8 @@ fn calculate_visible_y_area(window_height: f32, camera_y: f32) -> Range<f32> {
 }
 
 // Calculates the distance between the background walls and the edge of the screen
-fn calculate_screen_deadspace(window_width: f32) -> f32 {
-    (window_width - (game::background::LEVEL_TILE_WIDTH as f32 * art::WALL_WORLD_SIZE.x)) / 2.0
+fn calculate_screen_deadspace(window_width: f32, wall_world_width: f32) -> f32 {
+    (window_width - (game::background::LEVEL_TILE_WIDTH as f32 * wall_world_width)) / 2.0
 }
 
 // Map an input that can be within input_range to an output that can be within output_range

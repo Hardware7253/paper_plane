@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use crate::{art, generic, game, AppState};
+use game::sprite_scaler;
 use generic::Direction;
 use std::f32::consts::PI;
 
@@ -40,7 +41,8 @@ fn spawn_player(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-    screen_infromation: Res<generic::ScreenInformation>
+    screen_infromation: Res<generic::ScreenInformation>,
+    scale_factor: Res<sprite_scaler::ScaleFactor>,
 ) {
     let player_texture_atlas = TextureAtlas::from_grid(
         asset_server.load(art::PLAYER_SPRITE_SHEET_PATH),
@@ -61,9 +63,10 @@ fn spawn_player(
     );
 
     // Spawn player with their back against the wall
+    let player_world_width = art::PLAYER_SPRITE_SIZE.x * scale_factor.current;
     let player_spawn_x = match START_DIRECTION {
-        Direction::Left => screen_infromation.window_width - screen_infromation.x_deadspace - art::PLAYER_WORLD_SIZE.x / 2.0, 
-        Direction::Right => screen_infromation.x_deadspace + art::PLAYER_WORLD_SIZE.x / 2.0,
+        Direction::Left => screen_infromation.window_width - screen_infromation.x_deadspace - player_world_width / 2.0, 
+        Direction::Right => screen_infromation.x_deadspace + player_world_width / 2.0,
     };
 
     // Spawn player
@@ -85,7 +88,7 @@ fn spawn_player(
                 sprite: TextureAtlasSprite::new(art::PLAYER_SPRITE_SHEET_START_INDEX),
                 transform: Transform {
                     translation: Vec3::new(player_spawn_x, screen_infromation.window_height / 2.0, 2.0),
-                    scale: Vec3::splat(art::SPRITE_SCALE as f32),
+                    scale: Vec3::splat(scale_factor.current),
                     ..default()
                 },
                 ..default()
@@ -105,7 +108,7 @@ fn spawn_player(
                 visibility: Visibility::Hidden,
                 transform: Transform {
                     translation: Vec3::splat(2.0), // The location of the death animation isn't important, as long as it is above other sprites on the z axis
-                    scale: Vec3::splat(art::SPRITE_SCALE as f32),
+                    scale: Vec3::splat(scale_factor.current),
                     ..default()
                 },
                 ..default()
