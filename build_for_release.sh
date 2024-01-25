@@ -20,25 +20,25 @@ build() {
     new="dynamic_linking"
     fnr
 
-    cd builds
-
     # Copy program into the builds directory
-    mkdir $name
-    cp target/$target/release/$program_name $name
-    cp -r ../assets $name
+    mkdir builds/$platform_name
+    cp target/$target/release/$program_name builds/$platform_name/
+    cp -r assets builds/$platform_name/
 
     # Zip
-    zip -r $name.zip $name
-    rm -r $name
+    cd builds
+    zip -r $platform_name.zip $platform_name
+    rm -r $platform_name
+    cd ..
 }
 
 target="x86_64-pc-windows-gnu"
-name="windows"
+platform_name="windows"
 program_name="paper_plane.exe"
 build
 
 target="x86_64-unknown-linux-gnu"
-name="linux"
+platform_name="linux"
 program_name="paper_plane"
 build
 
