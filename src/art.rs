@@ -25,4 +25,5 @@ pub const PLATFORM_STRAIGHT_SPRITE_PATH: &'static str = "sprites/PlatformStraigh
 pub const PLATFORM_SPRITE_SIZE: Vec2 = Vec2::new(8.0, 8.0);
 
 // Camera background color
+pub const CAMERA_BACKGROUND_SRPITE: &'static str = "sprites/Background.png";
 pub const CAMERA_BACKGROUND_HEX: &'static str = "1a1c2c";

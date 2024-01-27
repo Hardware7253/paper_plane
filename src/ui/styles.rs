@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 // Color scheme using https://lospec.com/palette-list/sweetie-16 color palette
-pub const BACKGROUND_HEX: &'static str = "1a1c2c"; //1a1c2c
+pub const BACKGROUND_HEX: &'static str = "1a1c2c";
 pub const FOREGROUND_HEX: &'static str = "333c57";
 pub const TEXT_HEX: &'static str = "f4f4f4";
 pub const TEXT_BOLD_HEX: &'static str = "94b0c2";

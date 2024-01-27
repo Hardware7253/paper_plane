@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use crate::{art, game};
+use crate::{art, game, AppState};
 use game::sprite_scaler;
 use rand::Rng;
 
@@ -114,25 +114,30 @@ impl Plugin for GenericPlugin {
 // Updates screen information
 // Used by game systems
 pub fn update_screen_information(
+    app_state: Res<State<AppState>>,
     mut screen_information: ResMut<ScreenInformation>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     camera_query: Query<&Transform, With<Camera>>,
     scale_factor: Res<sprite_scaler::ScaleFactor>,
 ) {
     if let Ok(window) = window_query.get_single() {
-        screen_information.window_width = window.width();
-        screen_information.window_height = window.height();
-        
-        let wall_world_width = art::WALL_SPRITE_SIZE.x * scale_factor.current;
-        screen_information.x_deadspace = calculate_screen_deadspace(window.width(), wall_world_width);
 
+        // Only update information related to the window size during AppState::GameSetup
+        if app_state.get() == &AppState::GameSetup {
+            screen_information.window_width = window.width();
+            screen_information.window_height = window.height();
+
+            let wall_world_width = art::WALL_SPRITE_SIZE.x * scale_factor.current;
+            screen_information.x_deadspace = calculate_screen_deadspace(window.width(), wall_world_width);
+        }
+        
         // Calculate y visible area if the camera exists, otherwise use the window height
         if let Ok(camera_transform) = camera_query.get_single() {
             screen_information.y_visible_area = calculate_visible_y_area(window.height(), camera_transform.translation.y);   
         } else {
             screen_information.y_visible_area = Range {min: 0.0, max: window.height()}
         }
-    } 
+    }
 }
 
 // Calculates the maximum and minimum y coordinate on the screen
