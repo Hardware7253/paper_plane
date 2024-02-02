@@ -5,6 +5,7 @@ pub mod game;
 pub mod art;
 pub mod generic;
 pub mod screen_mode;
+pub mod cursor;
 
 
 pub mod ui;
@@ -41,7 +42,7 @@ fn main() {
             .set(ImagePlugin::default_nearest()), // Change ImagePlugin to render sprites with nearest scaling
         ))
 
-        .add_plugins((game::GamePlugin, generic::GenericPlugin, ui::UiPlugin, screen_mode::ScreenModePlugin))
+        .add_plugins((game::GamePlugin, generic::GenericPlugin, ui::UiPlugin, screen_mode::ScreenModePlugin, cursor::AutoHideCursorPlugin))
 
         .add_systems(OnEnter(AppState::GameCleanup), game_cleanup_transition)
         .add_systems(OnEnter(AppState::GameSetup), game_setup_transition)
