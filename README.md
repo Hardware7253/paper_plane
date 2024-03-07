@@ -3,7 +3,7 @@
 
 Rust Paper Plane is an endless runner heavily inspired by the paper plane mini game from WarioWare, Inc.: Mega Microgames!
 
-[Itch.io page](https://oxnh.itch.io/reterra)
+[Itch.io page](https://oxnh.itch.io/rust-paper-plane)
 
 # Keybinds
 Key           | Bind
